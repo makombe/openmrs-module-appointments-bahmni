@@ -3,9 +3,11 @@ package org.openmrs.module.appointments.web.controller;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
+import org.codehaus.jackson.type.TypeReference;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.PersonAttribute;
@@ -59,6 +61,7 @@ public class AppointmentController extends BaseRestController {
 
     @Autowired
     private AppointmentServiceMapper appointmentServiceMapper;
+   // private List<AppointmentRequest> appointmentRequests = new ArrayList<>();
 
     @RequestMapping(method = RequestMethod.GET, value = "all")
     @ResponseBody
@@ -102,6 +105,39 @@ public class AppointmentController extends BaseRestController {
             return new ResponseEntity<>(appointmentMapper.constructResponse(appointment), HttpStatus.OK);
         } catch (Exception e) {
             log.error("Runtime error while trying to create new appointment", e);
+            return new ResponseEntity<>(RestUtil.wrapErrorResponse(e, e.getMessage()), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+
+    @RequestMapping(method = RequestMethod.POST, value = "saveOrUpdateAppointments")
+    @ResponseBody
+    public ResponseEntity<Object> saveAppointment(@Valid @RequestBody String appointmentRequestsReponses) throws IOException {
+
+        ObjectMapper mapper = new ObjectMapper();
+        List<AppointmentRequest> requests = mapper.readValue(appointmentRequestsReponses, new TypeReference<List<AppointmentRequest>>() {});
+        
+    
+        List<Appointment> appointmentList = new ArrayList<>();
+       
+        System.out.println("appointmentRequests======="+requests);
+        try {
+           // if(appointmentRequests instanceof ArrayList) {
+                for (AppointmentRequest appointmentRequest: requests ) {
+                    System.out.println("request===="+ appointmentRequest);
+                Appointment appointment = appointmentsService
+                        .validateAndSave(() -> appointmentMapper.fromRequest(appointmentRequest));
+                appointmentList.add(appointment);
+    
+                }
+
+           // }
+            
+            return new ResponseEntity<>(appointmentList, HttpStatus.OK);
+
+            
+        }catch (RuntimeException e) {
+            log.error("Runtime error while trying to create or update appointment", e);
             return new ResponseEntity<>(RestUtil.wrapErrorResponse(e, e.getMessage()), HttpStatus.BAD_REQUEST);
         }
     }
@@ -415,8 +451,18 @@ public class AppointmentController extends BaseRestController {
         @RequestParam(value = "endDate") String endDateString) throws ParseException {
             Date startDate = DateUtil.convertToLocalDateFromUTC(startDateString);
             Date endDate = DateUtil.convertToLocalDateFromUTC(endDateString);
-            List<Appointment> allAppointmentsInDateRange = appointmentsService.getAllAppointmentsInDateRange(startDate,
-                    endDate);
-        return appointmentMapper.constructResponse(allAppointmentsInDateRange);
+            System.out.println("startdate===="+startDate );
+            System.out.println("enddate===="+ endDate);
+            List<AppointmentDefaultResponse> appointmentsAppointmentDefaultResponses = new ArrayList<>();
+
+            List<Appointment> allAppointmentsInDateRange = appointmentsService.getAllAppointmentsInDateRange( DateUtil.convertToLocalDateFromUTC(startDateString),
+            DateUtil.convertToLocalDateFromUTC(endDateString));
+        System.out.println("allAppointmentsInDateRange===="+ allAppointmentsInDateRange);
+        if (allAppointmentsInDateRange != null && allAppointmentsInDateRange.size() > 0) {
+            appointmentsAppointmentDefaultResponses = appointmentMapper.constructResponse(allAppointmentsInDateRange);
+           // return appointmentMapper.constructResponse(allAppointmentsInDateRange);
+        }
+        return appointmentsAppointmentDefaultResponses;
+        
     }
 }

@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import javax.validation.Valid;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,28 @@ public class AppointmentsController extends BaseRestController {
             Appointment appointment = appointmentMapper.fromRequest(appointmentRequest);
             appointmentsService.validateAndSave(appointment);
             return new ResponseEntity<>(appointmentMapper.constructResponse(appointment), HttpStatus.OK);
+        }catch (RuntimeException e) {
+            log.error("Runtime error while trying to create new appointment", e);
+            return new ResponseEntity<>(RestUtil.wrapErrorResponse(e, e.getMessage()), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @RequestMapping(method = RequestMethod.POST)
+    @ResponseBody
+    public ResponseEntity<Object> saveAppointment(@Valid @RequestBody List<AppointmentRequest> appointmentRequests) throws IOException {
+        List<AppointmentRequest> appointmentRequestList = new ArrayList<>();
+        try {
+            for (AppointmentRequest appointmentRequest: appointmentRequests ) {
+            appointmentRequest.setUuid(null);
+            Appointment appointment = appointmentMapper.fromRequest(appointmentRequest);
+            appointmentsService.validateAndSave(appointment);
+            appointmentRequestList.add(appointmentRequest);
+           // return new ResponseEntity<>(appointmentMapper.constructResponse(appointment), HttpStatus.OK);
+
+            }
+            return new ResponseEntity<>(appointmentRequestList, HttpStatus.OK);
+
+            
         }catch (RuntimeException e) {
             log.error("Runtime error while trying to create new appointment", e);
             return new ResponseEntity<>(RestUtil.wrapErrorResponse(e, e.getMessage()), HttpStatus.BAD_REQUEST);
